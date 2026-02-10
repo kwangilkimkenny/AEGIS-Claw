@@ -1,0 +1,64 @@
+{
+  "name": "@openclaw/plugin-aegis-claw",
+  "version": "0.2.0",
+  "description": "AEGIS-Claw security guard plugin for OpenClaw — multi-layer protection against prompt injection, jailbreak, encoding attacks, and PII leaks",
+  "main": "index.ts",
+  "type": "module",
+  "license": "MIT",
+  "openclaw": {
+    "pluginApiVersion": 1,
+    "displayName": "AEGIS-Claw Security Guard",
+    "description": "3-layer jailbreak detection, encoding attack defense, Content Sanitizer, and 5-decision routing",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["enforcing", "auditing", "disabled"],
+          "default": "enforcing",
+          "description": "enforcing: block threats / auditing: log only / disabled: off"
+        },
+        "pythonServiceUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:5050",
+          "description": "URL of the AEGIS-Claw Python microservice"
+        },
+        "blockOnCritical": {
+          "type": "boolean",
+          "default": true,
+          "description": "Block requests with critical severity"
+        },
+        "escalateOnHigh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Escalate requests with high severity"
+        },
+        "redactSecrets": {
+          "type": "boolean",
+          "default": true,
+          "description": "Redact API keys, passwords, tokens in tool results"
+        },
+        "rateLimitEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable per-session rate limiting"
+        },
+        "rateLimitMaxRequests": {
+          "type": "number",
+          "default": 60,
+          "description": "Max requests per 60-second window"
+        },
+        "timeoutMs": {
+          "type": "number",
+          "default": 5000,
+          "description": "Timeout for AEGIS service calls in ms"
+        },
+        "logLevel": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"],
+          "default": "info"
+        }
+      }
+    }
+  }
+}

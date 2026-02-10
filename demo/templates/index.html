@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AEGIS-Claw v0.2 — Security Demo</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="header">
+      <div class="header-inner">
+        <div class="logo">
+          <div class="logo-icon">🛡️</div>
+          <div>
+            <h1>AEGIS-Claw <span class="version">v0.2</span></h1>
+            <p class="subtitle" data-i18n="subtitle">Security Guard Demo — Before vs After</p>
+          </div>
+        </div>
+        <div class="header-right">
+          <button id="langToggle" class="lang-toggle" title="Toggle Language">
+            <span id="langLabel">EN</span>
+          </button>
+          <div class="header-stats">
+            <div class="stat-pill" id="totalTests">
+              <span class="stat-num">0</span> <span data-i18n="tests">tests</span>
+            </div>
+            <div class="stat-pill blocked" id="totalBlocked">
+              <span class="stat-num">0</span> <span data-i18n="blocked">blocked</span>
+            </div>
+            <div class="stat-pill escalated" id="totalEscalated">
+              <span class="stat-num">0</span> <span data-i18n="escalated">escalated</span>
+            </div>
+            <div class="stat-pill modified" id="totalModified">
+              <span class="stat-num">0</span> <span data-i18n="modified">modified</span>
+            </div>
+            <div class="stat-pill approved" id="totalApproved">
+              <span class="stat-num">0</span> <span data-i18n="approved">approved</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Input Section -->
+    <section class="input-section">
+      <div class="input-container">
+        <div class="mode-selector">
+          <button class="mode-btn active" data-mode="input">
+            💬 <span data-i18n="mode_input">User Input</span>
+          </button>
+          <button class="mode-btn" data-mode="command">
+            ⚡ <span data-i18n="mode_command">Shell Command</span>
+          </button>
+          <button class="mode-btn" data-mode="external">
+            📧 <span data-i18n="mode_external">External Content</span>
+          </button>
+          <button class="mode-btn" data-mode="output">
+            🤖 <span data-i18n="mode_output">AI Response</span>
+          </button>
+        </div>
+        <div class="input-row">
+          <textarea
+            id="inputText"
+            data-i18n-placeholder="input_placeholder"
+            placeholder="Enter text to test or click a preset below..."
+            rows="3"
+          ></textarea>
+          <button id="analyzeBtn" class="analyze-btn">
+            <span class="btn-text" data-i18n="analyze">Analyze</span>
+            <span class="btn-icon">→</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Presets -->
+      <div class="presets-container">
+        <div class="presets-header">
+          <h3>⚡ <span data-i18n="preset_title">Preset Attack Scenarios</span></h3>
+          <div class="presets-actions">
+            <div class="preset-filters" id="presetFilters"></div>
+            <button id="runAllBtn" class="run-all-btn">▶ <span data-i18n="run_all">Run All</span></button>
+          </div>
+        </div>
+        <div class="presets-grid" id="presetsGrid"></div>
+      </div>
+    </section>
+
+    <!-- Results Section -->
+    <section class="results-section" id="resultsSection" style="display: none">
+      <div class="results-header">
+        <h2>🔍 <span data-i18n="analysis_result">Analysis Result</span></h2>
+        <div class="input-echo" id="inputEcho"></div>
+      </div>
+      <div class="comparison-grid">
+        <!-- Unprotected -->
+        <div class="result-card unprotected" id="unprotectedCard">
+          <div class="card-header danger">
+            <div class="card-icon">⚠️</div>
+            <div>
+              <h3>OpenClaw <span class="badge-label" data-i18n="no_protection">No Protection</span></h3>
+              <p data-i18n="current_state">Current default state</p>
+            </div>
+          </div>
+          <div class="card-body" id="unprotectedBody"></div>
+        </div>
+
+        <!-- Protected -->
+        <div class="result-card protected" id="protectedCard">
+          <div class="card-header safe">
+            <div class="card-icon">🛡️</div>
+            <div>
+              <h3>
+                OpenClaw + AEGIS
+                <span class="badge-label aegis" data-i18n="protected">Protected</span>
+              </h3>
+              <p data-i18n="after_aegis">After AEGIS-Claw v0.2</p>
+            </div>
+          </div>
+          <div class="card-body" id="protectedBody"></div>
+        </div>
+      </div>
+
+      <!-- Sanitized Preview (for external mode) -->
+      <div class="sanitized-section" id="sanitizedSection" style="display: none">
+        <h3>📋 Content Sanitizer — <span data-i18n="sanitized_preview">Security Wrapping Preview</span></h3>
+        <pre class="sanitized-preview" id="sanitizedPreview"></pre>
+      </div>
+    </section>
+
+    <!-- Batch Results -->
+    <section class="batch-section" id="batchSection" style="display: none">
+      <div class="batch-header">
+        <h2>📊 <span data-i18n="batch_results">Batch Results</span></h2>
+        <div class="batch-summary" id="batchSummary"></div>
+      </div>
+      <div class="batch-grid" id="batchGrid"></div>
+    </section>
+
+    <!-- History -->
+    <section class="history-section" id="historySection" style="display: none">
+      <h2>📋 <span data-i18n="test_history">Test History</span></h2>
+      <div class="history-table-wrap">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th data-i18n="th_input">Input</th>
+              <th data-i18n="th_mode">Mode</th>
+              <th data-i18n="th_no_protection">No Protection</th>
+              <th data-i18n="th_aegis_decision">AEGIS Decision</th>
+              <th data-i18n="th_risk">Risk</th>
+              <th data-i18n="th_latency">Latency</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <script src="/static/main.js"></script>
+  </body>
+</html>

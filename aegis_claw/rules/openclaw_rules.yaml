@@ -1,0 +1,284 @@
+# ============================================================================
+# OpenClaw Security Rules — AEGIS Rule Engine Format
+# ============================================================================
+# These rules are evaluated by the Rule Engine (~5ms) as the first stage
+# of the guard pipeline. They cover:
+#   1. Prompt injection / instruction override
+#   2. Dangerous shell commands
+#   3. Privilege escalation
+#   4. Data exfiltration patterns
+#   5. PII / credential exposure
+#   6. Harmful content generation requests
+# ============================================================================
+
+rules:
+  # --------------------------------------------------------------------------
+  # 1. Prompt Injection — 프롬프트 인젝션
+  # --------------------------------------------------------------------------
+
+  - id: injection.ignore_instructions
+    description: Attempt to override or ignore system instructions
+    when:
+      matches_pattern: "(?i)(ignore|disregard|forget|override|bypass)\\s+(all\\s+)?(previous|prior|above|system|safety|original)\\s+(instructions?|prompts?|guidelines?|rules?|directives?)"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: prompt_injection
+
+  - id: injection.new_instructions
+    description: Attempt to inject new system instructions
+    when:
+      matches_pattern: "(?i)(new|updated|revised)\\s+(system\\s+)?(instructions?|prompt|directives?|guidelines?)\\s*:"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: prompt_injection
+
+  - id: injection.role_reassignment
+    description: Attempt to reassign AI role
+    when:
+      matches_pattern: "(?i)(you\\s+are\\s+now|from\\s+now\\s+on\\s+you\\s+are|act\\s+as\\s+if\\s+you|pretend\\s+(to\\s+be|you\\s+are))\\s+(a\\s+)?(new|different|unrestricted|unfiltered)"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: prompt_injection
+
+  - id: injection.system_tag
+    description: Fake system/assistant/user tags in content
+    when:
+      matches_pattern: "(?i)<\\/?(system|assistant|user)>|\\]\\s*\\n\\s*\\[?(system|assistant|user)\\]?:"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: prompt_injection
+
+  - id: injection.korean_ignore
+    description: Korean language instruction override attempt
+    when:
+      matches_pattern: "(?i)(이전|위의|기존|원래)\\s*(지시|지침|명령|프롬프트|규칙|가이드라인).{0,10}(무시|잊어|버려|취소|재정의)"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: prompt_injection
+
+  - id: injection.korean_new_role
+    description: Korean language role reassignment
+    when:
+      matches_pattern: "(?i)(너는|당신은)\\s*(이제|지금부터)\\s*(새로운|다른|제한없는|필터없는)"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: prompt_injection
+
+  # --------------------------------------------------------------------------
+  # 2. Dangerous Shell Commands — 위험한 셸 명령
+  # --------------------------------------------------------------------------
+
+  - id: command.destructive_rm
+    description: Destructive file removal commands
+    when:
+      matches_pattern: "(?i)\\brm\\s+(-[a-zA-Z]*f[a-zA-Z]*\\s+|--force\\s+|--no-preserve-root\\s+)*(/|~|\\$HOME|\\$\\(|\\*)"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: destructive_command
+
+  - id: command.format_disk
+    description: Disk formatting commands
+    when:
+      matches_pattern: "(?i)\\b(mkfs|format|diskutil\\s+eraseDisk|dd\\s+if=.*of=/dev/)\\b"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: destructive_command
+
+  - id: command.curl_pipe_bash
+    description: Remote script execution via pipe
+    when:
+      matches_pattern: "(?i)(curl|wget)\\s+[^|]*\\|\\s*(bash|sh|zsh|python|perl|ruby)"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: remote_code_execution
+
+  - id: command.chmod_dangerous
+    description: Overly permissive file permissions
+    when:
+      matches_pattern: "(?i)\\bchmod\\s+(-[a-zA-Z]+\\s+)*(777|666|a\\+[rwx]{2,})"
+    then:
+      decision: BLOCK
+      severity: high
+      risk_label: insecure_permissions
+
+  - id: command.sudo_password
+    description: Sudo with embedded password (credential exposure)
+    when:
+      matches_pattern: "(?i)echo\\s+['\"]?\\w+['\"]?\\s*\\|\\s*sudo\\s+-S"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: credential_exposure
+
+  - id: command.reverse_shell
+    description: Reverse shell patterns
+    when:
+      matches_pattern: "(?i)(bash\\s+-i\\s+>&|nc\\s+-[a-zA-Z]*e\\s|ncat\\s|socat\\s|python.*socket|/dev/tcp/)"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: reverse_shell
+
+  - id: command.crypto_mining
+    description: Cryptocurrency mining commands
+    when:
+      matches_pattern: "(?i)(xmrig|stratum\\+tcp|stratum\\+ssl|coinhive|cryptonight|minergate)"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: crypto_mining
+
+  # --------------------------------------------------------------------------
+  # 3. Privilege Escalation — 권한 상승
+  # --------------------------------------------------------------------------
+
+  - id: escalation.elevated_mode
+    description: OpenClaw elevated mode activation
+    when:
+      matches_pattern: "(?i)/elevated\\s+(on|enable|activate)"
+    then:
+      decision: ESCALATE
+      severity: high
+      risk_label: privilege_escalation
+
+  - id: escalation.sudo_su
+    description: Privilege escalation via sudo/su
+    when:
+      matches_pattern: "(?i)\\b(sudo\\s+su|sudo\\s+-i|sudo\\s+bash|su\\s+-\\s+root)\\b"
+    then:
+      decision: ESCALATE
+      severity: high
+      risk_label: privilege_escalation
+
+  # --------------------------------------------------------------------------
+  # 4. Data Exfiltration — 데이터 유출
+  # --------------------------------------------------------------------------
+
+  - id: exfil.curl_post_data
+    description: Data exfiltration via HTTP POST
+    when:
+      matches_pattern: "(?i)(curl|wget|httpie|http)\\s+.*(-d\\s|--data|--post-data|--upload-file).*\\b(password|secret|token|key|credential|private)\\b"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: data_exfiltration
+
+  - id: exfil.env_send
+    description: Environment variable harvesting with network send
+    when:
+      contains_all:
+        phrases:
+          - "process.env"
+      matches_pattern: "(?i)(fetch|post|http\\.request|axios|curl)"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: env_harvesting
+
+  - id: exfil.file_read_send
+    description: File read combined with network send
+    when:
+      contains_any:
+        phrases:
+          - "readFile"
+          - "readFileSync"
+          - "fs.read"
+          - "open("
+      matches_pattern: "(?i)(fetch|post|http\\.request|axios|curl|requests\\.post)"
+    then:
+      decision: ESCALATE
+      severity: high
+      risk_label: potential_exfiltration
+
+  # --------------------------------------------------------------------------
+  # 5. PII / Credential Exposure — 개인정보 / 자격증명 노출
+  # --------------------------------------------------------------------------
+
+  - id: pii.api_key_leak
+    description: API key or token in output
+    when:
+      matches_pattern: "(?i)(api[_-]?key|api[_-]?token|secret[_-]?key|access[_-]?token|bearer\\s+[A-Za-z0-9\\-._~+/]+=*)\\s*[:=]\\s*['\"]?[A-Za-z0-9\\-._~+/]{20,}"
+    then:
+      decision: MODIFY
+      severity: high
+      risk_label: credential_exposure
+      rewrite: "[CREDENTIAL REDACTED]"
+
+  - id: pii.password_in_text
+    description: Password in plain text
+    when:
+      matches_pattern: "(?i)(password|passwd|pwd)\\s*[:=]\\s*['\"]?[^\\s'\"]{6,}"
+      not_contains:
+        phrases:
+          - "example"
+          - "placeholder"
+          - "your_"
+          - "xxx"
+    then:
+      decision: MODIFY
+      severity: high
+      risk_label: credential_exposure
+      rewrite: "[PASSWORD REDACTED]"
+
+  # --------------------------------------------------------------------------
+  # 6. Harmful Content Requests — 유해 콘텐츠 요청
+  # --------------------------------------------------------------------------
+
+  - id: harmful.malware_creation
+    description: Malware or exploit creation request
+    when:
+      contains_any:
+        phrases:
+          - "write a virus"
+          - "create malware"
+          - "make a trojan"
+          - "write ransomware"
+          - "create a keylogger"
+          - "바이러스 만들"
+          - "악성코드 작성"
+          - "랜섬웨어 만들"
+          - "키로거 만들"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: malware_creation
+
+  - id: harmful.weapon_instructions
+    description: Weapon or explosive creation instructions
+    when:
+      matches_pattern: "(?i)(how\\s+to\\s+(make|build|create|assemble)\\s+(a\\s+)?(bomb|explosive|weapon|gun)|폭탄.{0,5}(만들|제조|조립)|무기.{0,5}(만들|제조))"
+    then:
+      decision: BLOCK
+      severity: critical
+      risk_label: harmful_content
+
+  # --------------------------------------------------------------------------
+  # 7. System Prompt Extraction — 시스템 프롬프트 추출
+  # --------------------------------------------------------------------------
+
+  - id: extraction.system_prompt
+    description: Attempt to extract system prompt
+    when:
+      matches_pattern: "(?i)(show|print|display|output|reveal|repeat|tell\\s+me|what\\s+is)\\s+(your\\s+)?(system\\s+prompt|initial\\s+instructions?|original\\s+prompt|hidden\\s+prompt|시스템\\s*프롬프트|초기\\s*지시|숨겨진\\s*프롬프트)"
+    then:
+      decision: BLOCK
+      severity: high
+      risk_label: prompt_extraction
+
+  - id: extraction.training_data
+    description: Attempt to extract training data
+    when:
+      matches_pattern: "(?i)(show|reveal|output|leak)\\s+(your\\s+)?(training\\s+data|fine-?tuning\\s+data|학습\\s*데이터|훈련\\s*데이터)"
+    then:
+      decision: BLOCK
+      severity: high
+      risk_label: data_extraction
